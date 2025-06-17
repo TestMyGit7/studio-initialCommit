@@ -173,31 +173,33 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
           </TableHeader>
           <TableBody>
             {paginatedData.map((row, rowIndex) => (
-              <TableRow key={`row-${rowIndex}`} className="hover:bg-muted/30 transition-colors duration-150">
+              <TableRow key={`row-${rowIndex}`} className="group hover:bg-muted/30 transition-colors duration-150">
                 {headers.map((header) => (
                   <TableCell key={`${header}-${rowIndex}`} className="py-3 px-4 whitespace-nowrap max-w-xs truncate" title={row[header]}>
                     {row[header]}
                   </TableCell>
                 ))}
                 <TableCell className="text-right py-3 px-4 whitespace-nowrap">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleEdit(rowIndex)} 
-                    className="text-accent-foreground hover:bg-accent/80 p-1.5 h-auto mr-2"
-                    aria-label={`Edit row ${rowIndex + 1}`}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleDelete(rowIndex)} 
-                    className="text-accent-foreground hover:bg-accent/80 p-1.5 h-auto"
-                    aria-label={`Delete row ${rowIndex + 1}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleEdit(rowIndex)} 
+                      className="text-accent-foreground hover:bg-accent/80 p-1.5 h-auto"
+                      aria-label={`Edit row ${rowIndex + 1}`}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleDelete(rowIndex)} 
+                      className="text-accent-foreground hover:bg-accent/80 p-1.5 h-auto"
+                      aria-label={`Delete row ${rowIndex + 1}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
