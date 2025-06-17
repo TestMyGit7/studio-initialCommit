@@ -3,13 +3,11 @@
 
 import type { ChangeEvent, DragEvent } from 'react';
 import { useCallback, useState } from 'react';
-import { UploadCloud, Loader2, FileWarning } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { UploadCloud } from 'lucide-react';
 import { parseCSV, type ParsedCsvData } from '@/lib/csv-parser';
 
 interface CsvUploaderProps {
-  onUploadSuccess: (headers: string[], data: Record<string, string>[]) => void;
+  onUploadSuccess: (headers: string[], data: Record<string, string>[], fileName: string) => void;
   onUploadError: (error: string) => void;
   setPageLoading: (loading: boolean) => void;
 }
@@ -35,14 +33,14 @@ export function CsvUploader({ onUploadSuccess, onUploadError, setPageLoading }: 
         
         if (headers.length === 0) {
           onUploadError('CSV file seems to be empty or not formatted correctly (no headers found).');
-          onUploadSuccess([], []);
+          // Do not call onUploadSuccess here, parent handles UI reset via onUploadError
         } else {
-          onUploadSuccess(headers, data);
+          onUploadSuccess(headers, data, file.name);
         }
       } catch (error) {
         console.error("Error parsing CSV:", error);
         onUploadError('Failed to parse CSV file. Please check its format and content.');
-        onUploadSuccess([], []);
+         // Do not call onUploadSuccess here
       } finally {
         setPageLoading(false);
       }
@@ -64,6 +62,7 @@ export function CsvUploader({ onUploadSuccess, onUploadError, setPageLoading }: 
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setFileName(e.dataTransfer.files[0].name); // Set filename for display within uploader
       handleFile(e.dataTransfer.files[0]);
     }
   }, [handleFile]);
@@ -71,7 +70,12 @@ export function CsvUploader({ onUploadSuccess, onUploadError, setPageLoading }: 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     if (e.target.files && e.target.files[0]) {
+      setFileName(e.target.files[0].name); // Set filename for display within uploader
       handleFile(e.target.files[0]);
+       // Reset file input value so that uploading the same file again triggers onChange
+      if (e.target) {
+        e.target.value = "";
+      }
     }
   };
 
@@ -103,9 +107,9 @@ export function CsvUploader({ onUploadSuccess, onUploadError, setPageLoading }: 
               <span className="font-semibold">Click to upload</span> or drag and drop
             </p>
             <p className={`text-xs ${dragActive ? "text-primary" : "text-muted-foreground"}`}>
-              CSV files only (up to 10MB)
+              CSV files only
             </p>
-            {fileName && !dragActive && (
+            {fileName && !dragActive && ( // Display filename if selected and not dragging
               <p className="mt-4 text-sm text-primary font-medium">Selected file: {fileName}</p>
             )}
           </div>

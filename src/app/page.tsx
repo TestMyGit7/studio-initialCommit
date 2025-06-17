@@ -1,40 +1,49 @@
 
 "use client";
 
-import { useState, useCallback } from 'react';
+import type { ChangeEvent } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { CsvUploader } from '@/components/csv-uploader';
 import { DataTable } from '@/components/data-table';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from '@/components/ui/button';
 import { Loader2, Info, FileWarning } from 'lucide-react';
-import { Toaster } from "@/components/ui/toaster"; // For potential future use if errors become toasts.
+import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
+import { parseCSV, type ParsedCsvData } from '@/lib/csv-parser';
 
 
 export default function Home() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [data, setData] = useState<Record<string, string>[]>([]);
-  const [pageIsLoading, setPageIsLoading] = useState(false); // For CSV processing
+  const [pageIsLoading, setPageIsLoading] = useState(false);
   const [uploadError, setUploadError] = useState<string>('');
   const { toast } = useToast();
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [showUploader, setShowUploader] = useState<boolean>(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
-  const handleUploadSuccess = useCallback((newHeaders: string[], newData: Record<string, string>[]) => {
+  const handleUploadSuccess = useCallback((newHeaders: string[], newData: Record<string, string>[], fileName: string) => {
     setHeaders(newHeaders);
     setData(newData);
     setUploadError('');
-    if (newHeaders.length > 0) {
-      toast({
-        title: "CSV Uploaded Successfully",
-        description: `Found ${newHeaders.length} columns and ${newData.length} rows.`,
-        variant: "default", 
-      });
-    }
+    // newHeaders.length > 0 is already checked in CsvUploader before calling this
+    setUploadedFileName(fileName);
+    setShowUploader(false);
+    toast({
+      title: "CSV Uploaded Successfully",
+      description: `File "${fileName}" processed. Found ${newHeaders.length} columns and ${newData.length} rows.`,
+      variant: "default",
+    });
   }, [toast]);
 
   const handleUploadError = useCallback((errorMessage: string) => {
     setUploadError(errorMessage);
     setHeaders([]);
     setData([]);
+    setUploadedFileName(null);
+    setShowUploader(true); // Revert to main uploader on any error
     if (errorMessage) {
        toast({
         title: "Upload Error",
@@ -62,6 +71,43 @@ export default function Home() {
     });
   }, [toast]);
 
+  const handleNewFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Reset file input immediately
+    }
+    if (file) {
+      if (file.type !== 'text/csv' && !file.name.toLowerCase().endsWith('.csv')) {
+        handleUploadError('Invalid file type. Please upload a CSV file.');
+        return;
+      }
+      setPageIsLoading(true);
+      setUploadError('');
+
+      try {
+        const text = await file.text();
+        const { headers: newHeaders, data: newData }: ParsedCsvData = parseCSV(text);
+
+        if (newHeaders.length === 0) {
+          // This will call handleUploadError, which sets showUploader back to true
+          handleUploadError('CSV file seems to be empty or not formatted correctly (no headers found).');
+        } else {
+          handleUploadSuccess(newHeaders, newData, file.name);
+        }
+      } catch (error) {
+        console.error("Error parsing CSV:", error);
+        // This will call handleUploadError, which sets showUploader back to true
+        handleUploadError('Failed to parse CSV file. Please check its format and content.');
+      } finally {
+        setPageIsLoading(false);
+      }
+    }
+  };
+
+  const handleChooseFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <>
       <main className="container mx-auto px-4 py-8 md:px-8 md:py-12 min-h-screen bg-background text-foreground font-body antialiased">
@@ -74,11 +120,33 @@ export default function Home() {
           </p>
         </header>
 
-        <CsvUploader
-          onUploadSuccess={handleUploadSuccess}
-          onUploadError={handleUploadError}
-          setPageLoading={setPageIsLoading}
-        />
+        {showUploader ? (
+          <CsvUploader
+            onUploadSuccess={handleUploadSuccess}
+            onUploadError={handleUploadError}
+            setPageLoading={setPageIsLoading}
+          />
+        ) : (
+          !pageIsLoading && uploadedFileName && (
+            <div className="flex justify-between items-center mb-6 p-4 bg-card rounded-lg shadow-md">
+              <div>
+                <span className="text-sm font-medium text-foreground mr-2">Uploaded File:</span>
+                <span className="text-sm text-primary font-semibold">{uploadedFileName}</span>
+              </div>
+              <Button onClick={handleChooseFileClick} variant="outline" className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary">
+                Choose New File
+              </Button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleNewFileSelected}
+                accept=".csv"
+                className="hidden"
+                id="hidden-file-input"
+              />
+            </div>
+          )
+        )}
 
         {pageIsLoading && (
           <div className="flex flex-col items-center justify-center text-center my-12 p-8 bg-card rounded-lg shadow">
@@ -105,7 +173,8 @@ export default function Home() {
           />
         )}
 
-        {!pageIsLoading && !uploadError && headers.length === 0 && (
+        {!pageIsLoading && !uploadError && headers.length === 0 && showUploader && !uploadedFileName && (
+          // Show initial empty state only if main uploader is visible and no file ever processed successfully
           <div className="text-center text-muted-foreground mt-16 p-8 bg-card rounded-lg shadow max-w-md mx-auto">
             <Info size={48} className="mx-auto mb-4 text-primary" />
             <h2 className="text-xl font-semibold text-foreground mb-2">Ready to Start?</h2>
