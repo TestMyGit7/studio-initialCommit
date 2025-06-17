@@ -140,7 +140,7 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
 
   return (
     <div className="mt-8 bg-card p-4 md:p-6 rounded-lg shadow-md">
-      <div className="mb-4">
+      <div className="flex justify-between items-center mb-4">
         <Input
           placeholder="Search table..."
           value={searchTerm}
@@ -150,6 +150,13 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
           }}
           className="max-w-sm bg-background border-input focus:ring-primary"
         />
+        {headers.length > 0 && (
+           <div className="text-sm text-muted-foreground text-right">
+            <span>Columns: {headers.length}</span>
+            <span className="mx-2">|</span>
+            <span>Rows: {sortedData.length} / {initialData.length}</span>
+          </div>
+        )}
       </div>
       <div className="overflow-x-auto">
         <Table>
@@ -173,14 +180,14 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
           </TableHeader>
           <TableBody>
             {paginatedData.map((row, rowIndex) => (
-              <TableRow key={`row-${rowIndex}`} className="group hover:bg-muted/30 transition-colors duration-150">
+              <TableRow key={`row-${rowIndex}`} className="hover:bg-muted/30 transition-colors duration-150">
                 {headers.map((header) => (
                   <TableCell key={`${header}-${rowIndex}`} className="py-3 px-4 whitespace-nowrap max-w-xs truncate" title={row[header]}>
                     {row[header]}
                   </TableCell>
                 ))}
                 <TableCell className="text-right py-3 px-4 whitespace-nowrap">
-                  <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+                  <div className="flex items-center justify-end space-x-2">
                     <Button 
                       variant="ghost" 
                       size="sm" 
