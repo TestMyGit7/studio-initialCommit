@@ -24,7 +24,6 @@ interface DatasetSlot {
 const initialSlots: DatasetSlot[] = [
   { id: 0, headers: [], data: [], fileName: null, isUploading: false, uploadError: '' },
   { id: 1, headers: [], data: [], fileName: null, isUploading: false, uploadError: '' },
-  { id: 2, headers: [], data: [], fileName: null, isUploading: false, uploadError: '' },
 ];
 
 export default function Home() {
@@ -162,7 +161,7 @@ export default function Home() {
             CSV Data Manager
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-            Upload, view, edit, and manage your CSV data with an intuitive interface. Supports up to 3 files simultaneously.
+            Upload, view, edit, and manage your CSV data with an intuitive interface. Supports up to 2 files simultaneously.
           </p>
         </header>
 
@@ -238,4 +237,3 @@ export default function Home() {
     </>
   );
 }
-
