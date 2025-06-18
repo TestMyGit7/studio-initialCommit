@@ -7,7 +7,7 @@ import { CsvUploader } from '@/components/csv-uploader';
 import { DataTable } from '@/components/data-table';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
-import { Loader2, Info, FileWarning } from 'lucide-react';
+import { Loader2, FileWarning } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import { parseCSV, type ParsedCsvData } from '@/lib/csv-parser';
@@ -173,16 +173,6 @@ export default function Home() {
           />
         )}
 
-        {!pageIsLoading && !uploadError && headers.length === 0 && showUploader && !uploadedFileName && (
-          // Show initial empty state only if main uploader is visible and no file ever processed successfully
-          <div className="text-center text-muted-foreground mt-16 p-8 bg-card rounded-lg shadow max-w-md mx-auto">
-            <Info size={48} className="mx-auto mb-4 text-primary" />
-            <h2 className="text-xl font-semibold text-foreground mb-2">Ready to Start?</h2>
-            <p className="text-sm">
-              Upload a CSV file using the panel above to begin managing your data.
-            </p>
-          </div>
-        )}
       </main>
       <Toaster />
     </>
