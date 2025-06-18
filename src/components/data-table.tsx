@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import type { UIEvent} from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   Table,
   TableBody,
@@ -22,10 +23,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditRowDialog } from './edit-row-dialog';
-import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
-const ROWS_PER_PAGE = 10;
+const ROWS_PER_BATCH = 20; // Number of rows to load per scroll/batch
+const SCROLL_THRESHOLD = 100; // Pixels from bottom to trigger load
 
 interface DataTableProps {
   initialHeaders: string[];
@@ -39,17 +41,23 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
   const [data, setData] = useState<Record<string, string>[]>(initialData);
   
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const [editingRow, setEditingRow] = useState<{ index: number; data: Record<string, string> } | null>(null);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [displayedRowsCount, setDisplayedRowsCount] = useState(ROWS_PER_BATCH);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setHeaders(initialHeaders);
     setData(initialData);
-    setCurrentPage(1); // Reset to first page on new data
-    setSortConfig(null); // Reset sort on new data
-    setSearchTerm(''); // Reset search on new data
+    setDisplayedRowsCount(ROWS_PER_BATCH); 
+    setSortConfig(null); 
+    setSearchTerm(''); 
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0; // Scroll to top on new data
+    }
   }, [initialHeaders, initialData]);
 
   const filteredData = useMemo(() => {
@@ -68,6 +76,18 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
       sortableItems.sort((a, b) => {
         const valA = a[sortConfig.key];
         const valB = b[sortConfig.key];
+        
+        // Attempt to compare as numbers if both are numeric strings
+        const numA = parseFloat(valA);
+        const numB = parseFloat(valB);
+
+        if (!isNaN(numA) && !isNaN(numB)) {
+          if (numA < numB) return sortConfig.direction === 'ascending' ? -1 : 1;
+          if (numA > numB) return sortConfig.direction === 'ascending' ? 1 : -1;
+          return 0;
+        }
+
+        // Fallback to string comparison
         if (valA < valB) {
           return sortConfig.direction === 'ascending' ? -1 : 1;
         }
@@ -80,12 +100,9 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
     return sortableItems;
   }, [filteredData, sortConfig]);
 
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-    return sortedData.slice(startIndex, startIndex + ROWS_PER_PAGE);
-  }, [sortedData, currentPage]);
-
-  const totalPages = Math.ceil(sortedData.length / ROWS_PER_PAGE);
+  const visibleData = useMemo(() => {
+    return sortedData.slice(0, displayedRowsCount);
+  }, [sortedData, displayedRowsCount]);
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -93,26 +110,28 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
       direction = 'descending';
     }
     setSortConfig({ key, direction });
-    setCurrentPage(1);
+    setDisplayedRowsCount(ROWS_PER_BATCH); // Reset visible rows on sort
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
   };
 
-  const handleEdit = (rowIndexInPaginatedData: number) => {
-    const originalIndex = data.indexOf(paginatedData[rowIndexInPaginatedData]);
+  const handleEdit = (rowIndexInVisibleData: number) => {
+    const originalIndex = data.indexOf(visibleData[rowIndexInVisibleData]);
     if (originalIndex !== -1) {
-      setEditingRow({ index: originalIndex, data: paginatedData[rowIndexInPaginatedData] });
+      setEditingRow({ index: originalIndex, data: visibleData[rowIndexInVisibleData] });
     }
   };
 
   const handleSaveEdit = (updatedRow: Record<string, string>) => {
     if (editingRow !== null) {
       onRowUpdate(editingRow.index, updatedRow);
-      // Data state will be updated via prop change from parent, no direct setData here
     }
     setEditingRow(null);
   };
 
-  const handleDelete = (rowIndexInPaginatedData: number) => {
-    const originalIndex = data.indexOf(paginatedData[rowIndexInPaginatedData]);
+  const handleDelete = (rowIndexInVisibleData: number) => {
+    const originalIndex = data.indexOf(visibleData[rowIndexInVisibleData]);
     if (originalIndex !== -1) {
      setRowToDelete(originalIndex);
     }
@@ -121,9 +140,13 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
   const confirmDelete = () => {
     if (rowToDelete !== null) {
       onRowDelete(rowToDelete);
-      // Data state will be updated via prop change from parent
-      if (currentPage > 1 && paginatedData.length === 1 && data.length -1 < (currentPage -1) * ROWS_PER_PAGE +1) {
-        setCurrentPage(currentPage - 1);
+      // After deletion, the 'data' prop will update, triggering useEffect,
+      // which will reset displayedRowsCount if needed.
+      // Check if displayed count needs adjustment
+      if (displayedRowsCount > sortedData.length -1 && sortedData.length -1 >= ROWS_PER_BATCH ) {
+         setDisplayedRowsCount(sortedData.length -1);
+      } else if (sortedData.length -1 < ROWS_PER_BATCH) {
+         setDisplayedRowsCount(Math.max(ROWS_PER_BATCH, sortedData.length -1));
       }
     }
     setRowToDelete(null);
@@ -138,35 +161,72 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
       <ArrowDown className="ml-2 h-4 w-4 text-primary" />;
   };
 
+  const loadMoreRows = useCallback(() => {
+    if (isLoadingMore || displayedRowsCount >= sortedData.length) return;
+
+    setIsLoadingMore(true);
+    // Simulate a small delay for loading, can be removed if data processing is instant
+    setTimeout(() => {
+      setDisplayedRowsCount(prevCount => Math.min(prevCount + ROWS_PER_BATCH, sortedData.length));
+      setIsLoadingMore(false);
+    }, 300); // Adjust delay as needed, or remove for instant load
+  }, [isLoadingMore, displayedRowsCount, sortedData.length]);
+
+  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD) {
+      loadMoreRows();
+    }
+  };
+  
+  useEffect(() => {
+    // If initialData causes sortedData to be less than current displayedRowsCount, adjust it.
+    // This is important if data shrinks significantly (e.g. after a delete and new file upload)
+    if (sortedData.length < displayedRowsCount) {
+        setDisplayedRowsCount(Math.max(ROWS_PER_BATCH, sortedData.length));
+    }
+  }, [sortedData, displayedRowsCount]);
+
+
   return (
     <div className="mt-8 bg-card p-4 md:p-6 rounded-lg shadow-md">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
         <Input
           placeholder="Search table..."
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
-            setCurrentPage(1); // Reset to first page on search
+            setDisplayedRowsCount(ROWS_PER_BATCH); // Reset on search
+             if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTop = 0;
+            }
           }}
-          className="max-w-sm bg-background border-input focus:ring-primary"
+          className="max-w-full sm:max-w-xs md:max-w-sm bg-background border-input focus:ring-primary"
         />
         {headers.length > 0 && (
-           <div className="text-sm text-muted-foreground text-right">
+           <div className="text-sm text-muted-foreground text-right whitespace-nowrap">
             <span>Columns: {headers.length}</span>
             <span className="mx-2">|</span>
-            <span>Rows: {sortedData.length} / {initialData.length}</span>
+            <span>
+                Rows: {filteredData.length < data.length ? `${filteredData.length} (filtered) / ` : ''}
+                {data.length} (total)
+            </span>
           </div>
         )}
       </div>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
+      <div 
+        ref={scrollContainerRef} 
+        onScroll={handleScroll} 
+        className="overflow-x-auto overflow-y-auto max-h-[600px] relative border rounded-md"
+      >
+        <Table className="relative">
+          <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
             <TableRow className="hover:bg-transparent">
               {headers.map((header) => (
                 <TableHead 
                   key={header} 
                   onClick={() => requestSort(header)}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors select-none whitespace-nowrap"
+                  className="cursor-pointer hover:bg-muted/50 transition-colors select-none whitespace-nowrap py-3 px-4"
                   aria-sort={sortConfig?.key === header ? sortConfig.direction : "none"}
                 >
                   <div className="flex items-center">
@@ -175,11 +235,11 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
                   </div>
                 </TableHead>
               ))}
-              <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
+              <TableHead className="text-right whitespace-nowrap py-3 px-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedData.map((row, rowIndex) => (
+            {visibleData.map((row, rowIndex) => (
               <TableRow key={`row-${rowIndex}`} className="hover:bg-muted/30 transition-colors duration-150">
                 {headers.map((header) => (
                   <TableCell key={`${header}-${rowIndex}`} className="py-3 px-4 whitespace-nowrap max-w-xs truncate" title={row[header]}>
@@ -210,7 +270,7 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
                 </TableCell>
               </TableRow>
             ))}
-            {paginatedData.length === 0 && (
+            {visibleData.length === 0 && !isLoadingMore && (
               <TableRow>
                 <TableCell colSpan={headers.length + 1} className="h-24 text-center text-muted-foreground">
                   No results found.
@@ -219,33 +279,16 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
             )}
           </TableBody>
         </Table>
+        {isLoadingMore && (
+          <div className="flex justify-center items-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="ml-2 text-muted-foreground">Loading more...</span>
+          </div>
+        )}
+        {!isLoadingMore && displayedRowsCount < sortedData.length && (
+             <div className="h-1"></div> // Placeholder to ensure scroll event can trigger if content is short
+        )}
       </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-            className="text-primary border-primary/50 hover:bg-primary/10"
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
-            className="text-primary border-primary/50 hover:bg-primary/10"
-          >
-            Next <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
-      )}
 
       {editingRow && (
         <EditRowDialog
@@ -280,3 +323,4 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
     </div>
   );
 }
+
