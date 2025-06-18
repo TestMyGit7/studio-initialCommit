@@ -121,11 +121,23 @@ export default function Home() {
         </header>
 
         {showUploader ? (
-          <CsvUploader
-            onUploadSuccess={handleUploadSuccess}
-            onUploadError={handleUploadError}
-            setPageLoading={setPageIsLoading}
-          />
+          <div className="flex flex-col md:flex-row gap-6 justify-around items-start mb-8">
+            <CsvUploader
+              onUploadSuccess={handleUploadSuccess}
+              onUploadError={handleUploadError}
+              setPageLoading={setPageIsLoading}
+            />
+            <CsvUploader
+              onUploadSuccess={handleUploadSuccess}
+              onUploadError={handleUploadError}
+              setPageLoading={setPageIsLoading}
+            />
+            <CsvUploader
+              onUploadSuccess={handleUploadSuccess}
+              onUploadError={handleUploadError}
+              setPageLoading={setPageIsLoading}
+            />
+          </div>
         ) : (
           !pageIsLoading && uploadedFileName && (
             <div className="flex justify-between items-center mb-6 p-4 bg-card rounded-lg shadow-md">
@@ -156,7 +168,7 @@ export default function Home() {
           </div>
         )}
         
-        {!pageIsLoading && uploadError && (
+        {!pageIsLoading && uploadError && showUploader && ( // Only show upload error if uploader is visible
           <Alert variant="destructive" className="max-w-2xl mx-auto my-8 shadow-md">
             <FileWarning className="h-5 w-5" />
             <AlertTitle>Upload Failed</AlertTitle>
