@@ -158,7 +158,7 @@ export default function Home() {
       <main className="container mx-auto px-4 py-8 md:px-8 md:py-12 min-h-screen bg-background text-foreground font-body antialiased">
         <header className="mb-10 text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-headline font-extrabold text-primary mb-3 tracking-tight">
-            CSV Data Manager
+            CSV Data Manager-A
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
             Upload, view, edit, and manage your CSV data with an intuitive interface. Supports up to 2 files simultaneously.
