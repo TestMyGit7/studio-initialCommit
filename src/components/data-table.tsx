@@ -219,7 +219,7 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
         onScroll={handleScroll} 
         className="overflow-x-auto overflow-y-auto max-h-[600px] relative border rounded-md"
       >
-        <Table className="relative">
+        <Table> {/* Removed className="relative" */}
           <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
             <TableRow className="hover:bg-transparent">
               {headers.map((header) => (
@@ -323,4 +323,3 @@ export function DataTable({ initialHeaders, initialData, onRowUpdate, onRowDelet
     </div>
   );
 }
-
